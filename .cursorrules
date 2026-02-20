@@ -1,0 +1,11 @@
+# AI Assistant Guidelines
+
+When working on this project and making changes to the codebase, follow these strict documentation rules to keep the project synchronized:
+
+1. **Update `docs/implementation`**:
+   This file acts as the project's **theoretical roadmap and step-by-step plan**. If you propose a new feature, discover a new requirement, or alter the methodology, you MUST update this file to reflect the new sequence of tasks.
+
+2. **Update `docs/realisation`**:
+   This file acts as the **changelog and technical journal**. Whenever you successfully complete a task, solve a problem, or write new code, you MUST document what was built, how it works, the difficulties you met, and the results obtained in this file. 
+
+Always keep these files up to date so the developer's journey and plan remain clear.

@@ -1,0 +1,20 @@
+# Realisation Log & Technical Journal
+
+## Step 1: Data Preparation
+
+**What was built:**
+- Created `1_Data_Preparation.ipynb` to centralize the cleaning operations.
+- Set up a pipeline to load `reviews83325.csv` and `Tripadvisor.csv`.
+- Filtered specifically for English reviews (`langue` == 'en').
+- Grouped all textual reviews under the same location parameter `idplace`.
+- Deployed a mechanism drawing from `TfidfVectorizer` (scikit-learn) to extract only the top 100 most defining terms per location to resolve the issue of varying review quantities.
+- The pipeline exports the sanitized data to `prepared_reviews.csv` for Model steps.
+
+**Difficulties met:**
+- Running TF-IDF systematically on concatenated reviews limits required optimization. We wrote a test script (`test_data_prep.py`) before implementing it in the Notebook to ensure no unexpected crashes occurred across the >150k english reviews.
+- Avoiding vocabulary dilution: Empty strings or null values were converted/dropped securely.
+
+**Results obtained:**
+- Reduced total individual review count from 340,385 to 153,071 English reviews.
+- Consolidated these reviews into 1,835 unique `idplace` documents.
+- Achieved a uniform output length (max 100 normalized words per location) suitable for similarity embeddings.

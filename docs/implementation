@@ -1,0 +1,40 @@
+# TripAdvisor Recommendation System - Implementation Plan
+
+This document outlines the detailed step-by-step plan for building a text-based recommender system that relies solely on reviews to recommend similar places.
+
+## 1. Data Exploration and Preparation
+- [ ] Load and explore `reviews83325.csv` (reviews text) and `Tripadvisor.csv` (metadata).
+- [ ] Filter out non-English reviews (`langue` == 'en') to keep the NLP vocabulary consistent.
+- [ ] Group reviews by place using `idplace` and `id`.
+- [ ] Handle discrepancies in the number of reviews to maintain a balanced dataset:
+  - Extract the top 100 most representative words using TF-IDF for each place to normalize text length.
+
+## 2. Evaluation Setup
+- [ ] Create a random split for places: 50% for train (queries) and 50% for test (recommendation pool).
+- [ ] Implement Validation Metrics:
+  - **Ranking Error Level 1**: Check if the returned place shares the exact same `typeR` attribute (Hotel, Restaurant, Attraction, Attraction Product). Error = position - 1. **(Edge case: if no test place shares the `typeR` metadata, error is undefined)**.
+  - **Ranking Error Level 2**: Check for fine-grained sub-category matches. A recommendation is valid if **at least one** category matches between the query and the retrieved place (e.g., in `activiteSubType`, `restaurantType`, `cuisine`, `priceRange`). **(Edge case: if no match possible in test set, error is undefined)**.
+
+## 3. Baseline Model (BM25)
+- [ ] Set up the `rank-bm25` Python library.
+- [ ] Run test queries against the test dataset using the BM25 model.
+- [ ] Evaluate the BM25 model using Ranking Error Level 1 and Level 2 to set the performance baseline.
+- **Continuous Documentation**: Update `docs/realisation` with intermediate results and encountered difficulties.
+
+## 4. Custom Model Design and Optimization
+To demonstrate implication and depth, we will develop and evaluate at least *two* alternative models to compare against the BM25 baseline:
+
+- **Model A (TF-IDF + Cosine Similarity)**: Creating word vector representations using TF-IDF and comparing them via Cosine Similarity. This represents a solid, lightweight statistical baseline.
+- **Model B (Dense Word/Sentence Embeddings)**: Utilizing context-aware embeddings (e.g., Word2Vec or a Hugging Face Transformer like MiniLM/BERT). This relies on the Distributional Hypothesis to map reviews with similar contexts closer together in vector space, capturing deeper semantic meaning than frequency-based methods.
+
+- **Continuous Documentation**: Update `docs/realisation` with results and difficulties for each model iteration.
+- *(Strict Rule)*: Ensure no metadata is fed into any model during training or interference. Metadata is for testing only.
+
+## 5. Final Reporting and Delivery
+- [ ] Compare the metrics (Level 1 & 2) between BM25, Model A, and Model B.
+- [ ] Consolidate code into a clean, reproducible Jupyter Notebook.
+- [ ] Write a short report detailing:
+  - Preprocessing and normalization choices.
+  - Description and evaluation of the different models built.
+  - Final results logic.
+- **Logistics**: Submit the Jupyter Notebook and report on DVO by March 2, 2026 (Groups of 2).
