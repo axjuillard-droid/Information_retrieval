@@ -18,3 +18,55 @@
 - Reduced total individual review count from 340,385 to 153,071 English reviews.
 - Consolidated these reviews into 1,835 unique `idplace` documents.
 - Achieved a uniform output length (max 100 normalized words per location) suitable for similarity embeddings.
+
+## Step 2 & 3: Evaluation Setup & Baseline BM25
+
+**What was built:**
+- Created `2_BM25_Baseline_Evaluation.ipynb`.
+- Loaded `prepared_reviews.csv` alongside `Tripadvisor.csv` metadata, split indices keeping 50% for train (query emulation) and 50% for test (recommendation space).
+- Designed logic for Level 1 error (retrieving difference in rank from perfect match `typeR`).
+- Designed logic for Level 2 error using a compiled set of specific attributes (`activiteSubType`, `restaurantType`, `restaurantTypeCuisine`, `priceRange`).
+- Handled the edge cases specifically discussed (Undefined metric whenever no correct match could possibly be found within the generated test pool). 
+- Tested the standard BM25 probabilistic NLP model from `rank-bm25` on tokenized inputs.
+
+**Difficulties met:**
+- The `Tripadvisor.csv` column names were slightly different than expected (e.g., `restaurantTypeCuisine` instead of just `cuisine`), which required scripting to verify and match correct columns.
+- The TF-IDF preprocessing removed text for very sparse reviews, leading to instances with an empty string, which BM25 parsing had to handle safely.
+
+**Results obtained:**
+- **BM25 Average Ranking Error Level 1**: `0.61` (Computed on 917 valid test cases).
+- **BM25 Average Ranking Error Level 2**: `3.87` (Computed on 414 valid test cases).
+
+## Step 4: Custom Model Design
+
+### Model A: TF-IDF based vectorization & Cosine Similarity
+**What was built:**
+- Created `3_TFIDF_Similarity_Model.ipynb`.
+- Loaded the 50/50 test queries generated identically to the BM25 benchmark.
+- Instead of using BM25 probability distribution, we purely vectorized all test review summaries via an un-fit `TfidfVectorizer` mapping string frequencies to continuous TF-IDF scaled weights.
+- Vectorized the test space and queries.
+- Computed the linear algebra `cosine_similarity` between each individual query matrix and the test domain.
+- Ran the identical scripts for evaluating Level 1 and Level 2 matching logic.
+
+**Difficulties met:**
+- Making sure the Train/Test random seed matches identically with the Baseline split (fixed parameter `np.random.seed(42)` ensures deterministic validation).
+
+**Results obtained:**
+- **Model A Average Ranking Error Level 1**: `0.60`. Model A outperforms BM25 very marginally but is significantly faster to deploy across huge datasets utilizing Sklearn's fast array operations (computation took `0.25s` versus `13.0s`).
+- **Model A Average Ranking Error Level 2**: `4.78`. Although excellent for basic word checks, it noticeably drops in deeper semantic validation compared to BM25. TF-IDF relies on exact term overlap ("cheap hotel" vs "budget lodge" has no bridge), hence finding the specific subclass rank suffers.
+
+### Model B: Dense Word/Sentence Embeddings (Transformers)
+**What was built:**
+- Created `4_Transformer_Embedding_Model.ipynb`.
+- Loaded the 50/50 test queries generated identically to previous benchmarks.
+- Vectorized the test space and queries using the `sentence-transformers/all-MiniLM-L6-v2` dense embedding model (generating 384-dimensional dense vectors per review).
+- Computed the Cosine Similarity between dense arrays.
+- Evaluated against the Level 1 and Level 2 matching logic.
+
+**Difficulties met:**
+- Extracting dense embeddings with a Transformer model takes significantly more computing power and time than purely statistical TF-IDF matrix generation. However, using the small 'MiniLM' model ensures it remains executable on localized CPU resources without timeouts.
+
+**Results obtained:**
+- **Model B Average Ranking Error Level 1**: `0.69`. Slightly less precise than TF-IDF/BM25 on the exact `typeR` generalistic term mapping.
+- **Model B Average Ranking Error Level 2**: `4.46`. Noticeably outperforms pure TF-IDF on specific subtypes (Level 2). This confirms the *"Distributional Hypothesis"* from the course: because it maps contextual meaning rather than explicit word count, the dense embedding successfully matches sub-categories even if reviewer vocabularies slightly diverge compared to the rigid TF-IDF baseline.
+
