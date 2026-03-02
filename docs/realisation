@@ -1,13 +1,10 @@
 # Realisation Log & Technical Journal
 
 ## Step 1: Data Preparation
-
 **What was built:**
-- Created `1_Data_Preparation.ipynb` to centralize the cleaning operations.
-- Set up a pipeline to load `reviews83325.csv` and `Tripadvisor.csv`.
-- Filtered specifically for English reviews (`langue` == 'en').
-- Grouped all textual reviews under the same location parameter `idplace`.
-- Deployed a mechanism drawing from `TfidfVectorizer` (scikit-learn) to extract only the top 100 most defining terms per location to resolve the issue of varying review quantities.
+- Created `1_Data_Preparation.ipynb` to centralize cleaning.
+- Filtered specifically for English reviews (~153k usable reviews across 1835 uniquely identified locations).
+- **Keyword Signature Strategy**: Concatenated all reviews per place and extracted the **Top 100 characteristic words** via TF-IDF to resolve the issue of varying review quantities.
 - The pipeline exports the sanitized data to `prepared_reviews.csv` for Model steps.
 
 **Difficulties met:**
@@ -20,26 +17,23 @@
 - Achieved a uniform output length (max 100 normalized words per location) suitable for similarity embeddings.
 
 ## Step 2 & 3: Evaluation Setup & Baseline BM25
-
 **What was built:**
 - Created `2_BM25_Baseline_Evaluation.ipynb`.
 - Loaded `prepared_reviews.csv` alongside `Tripadvisor.csv` metadata, split indices keeping 50% for train (query emulation) and 50% for test (recommendation space).
 - Designed logic for Level 1 error (retrieving difference in rank from perfect match `typeR`).
 - Designed logic for Level 2 error using a compiled set of specific attributes (`activiteSubType`, `restaurantType`, `restaurantTypeCuisine`, `priceRange`).
-- Handled the edge cases specifically discussed (Undefined metric whenever no correct match could possibly be found within the generated test pool). 
-- Tested the standard BM25 probabilistic NLP model from `rank-bm25` on tokenized inputs.
+- Handled the edge cases specifically discussed (Undefined metric whenever no correct match could possibly be found within the generated test pool).
+- Tested the standard **BM25 probabilistic NLP model** from `rank-bm25` on tokenized inputs.
 
 **Difficulties met:**
-- The `Tripadvisor.csv` column names were slightly different than expected (e.g., `restaurantTypeCuisine` instead of just `cuisine`), which required scripting to verify and match correct columns.
+- The `Tripadvisor.csv` column names were slightly different than expected (e.g., `restaurantTypeCuisine` instead of just `cuisine`), requiring scripting to verify and match correct columns.
 - The TF-IDF preprocessing removed text for very sparse reviews, leading to instances with an empty string, which BM25 parsing had to handle safely.
 
 **Results obtained:**
 - **BM25 Average Ranking Error Level 1**: `0.61` (Computed on 917 valid test cases).
 - **BM25 Average Ranking Error Level 2**: `3.87` (Computed on 414 valid test cases).
 
-## Step 4: Custom Model Design
-
-### Model A: TF-IDF based vectorization & Cosine Similarity
+## Step 4: Custom Model A - TF-IDF & Cosine Similarity
 **What was built:**
 - Created `3_TFIDF_Similarity_Model.ipynb`.
 - Loaded the 50/50 test queries generated identically to the BM25 benchmark.
@@ -53,20 +47,52 @@
 
 **Results obtained:**
 - **Model A Average Ranking Error Level 1**: `0.60`. Model A outperforms BM25 very marginally but is significantly faster to deploy across huge datasets utilizing Sklearn's fast array operations (computation took `0.25s` versus `13.0s`).
-- **Model A Average Ranking Error Level 2**: `4.78`. Although excellent for basic word checks, it noticeably drops in deeper semantic validation compared to BM25. TF-IDF relies on exact term overlap ("cheap hotel" vs "budget lodge" has no bridge), hence finding the specific subclass rank suffers.
+- **Model A Average Ranking Error Level 2**: `4.78`. Although excellent for basic word checks, it noticeably drops in deeper semantic validation compared to the BM25 baseline (`3.87`). 
+  *Reasoning*: TF-IDF scales linearly with term frequency. BM25 rectifies this via **Term Saturation** and superior document length normalization. TF-IDF relies entirely on exact term overlap, which causes it to fail on finding specific sub-classes.
 
-### Model B: Dense Word/Sentence Embeddings (Transformers)
+## Step 5: Custom Model B - Initial Transformer Implementation
 **What was built:**
 - Created `4_Transformer_Embedding_Model.ipynb`.
-- Loaded the 50/50 test queries generated identically to previous benchmarks.
 - Vectorized the test space and queries using the `sentence-transformers/all-MiniLM-L6-v2` dense embedding model (generating 384-dimensional dense vectors per review).
+- Attempted to vectorize the **Top 100 Keywords** lists directly to match the Baseline methodology.
 - Computed the Cosine Similarity between dense arrays.
 - Evaluated against the Level 1 and Level 2 matching logic.
 
 **Difficulties met:**
-- Extracting dense embeddings with a Transformer model takes significantly more computing power and time than purely statistical TF-IDF matrix generation. However, using the small 'MiniLM' model ensures it remains executable on localized CPU resources without timeouts.
+- Extracting dense embeddings with a Transformer model takes significantly more computing power and time than statistical TF-IDF matrix generation. However, using the small 'MiniLM' model ensures it remains executable on localized CPU resources without timeouts.
+- **Problem Identification**: The Transformer failed to beat BM25 on the keyword signature task.
 
-**Results obtained:**
-- **Model B Average Ranking Error Level 1**: `0.69`. Slightly less precise than TF-IDF/BM25 on the exact `typeR` generalistic term mapping.
-- **Model B Average Ranking Error Level 2**: `4.46`. Noticeably outperforms pure TF-IDF on specific subtypes (Level 2). This confirms the *"Distributional Hypothesis"* from the course: because it maps contextual meaning rather than explicit word count, the dense embedding successfully matches sub-categories even if reviewer vocabularies slightly diverge compared to the rigid TF-IDF baseline.
+**Results obtained (Initial Benchmark on Keywords):**
+- **Model B Level 1 Error**: `0.69`
+- **Model B Level 2 Error**: `4.46` (Noticeably outperforms pure TF-IDF's `4.78` on sub-categories).
+- **Finding**: This confirms the **"Distributional Hypothesis"** from the course: because it maps contextual meaning rather than explicit word count, the dense embedding successfully matches sub-categories even if reviewer vocabularies slightly diverge compared to the rigid TF-IDF baseline. However, it still falls short of BM25's `3.87` probabilistic balance.
 
+## Step 6: The "Full Text" Pivot (Failed Theory)
+**Theory**: We hypothesized that feeding raw, full reviews would give the Transformer the "context" it needs to win.
+**Experiment**: Modified the pipeline to use full text instead of keywords and ran a new benchmark.
+
+**Difficulties met:**
+- **The Information Density Issue**: Some places have millions of characters of reviews. We implemented a "Place Summary" strategy, focusing on top reviews to respect the model's token limits.
+
+**Results obtained (Methodology Shift):**
+- **Transformer L2 Error**: `6.42`
+- **BM25 L2 Error (re-tested on messy text)**: `12.31`
+- **Realization**: While the Transformer technically "beat" the baseline in this new test, the **absolute error scores were significantly higher** because the task became much harder. We decided to revert to the high-performance `Top 100 Keywords` framework for the final deliverable.
+
+## Step 7: Final Refinement & Final Delivery - Hybrid Model
+**Decision**: Revert to keywords but find a way to make the Transformer smarter. We applied **Semantic Prompting** to reconstructed descriptive prompts.
+**Implementation**: 
+- Implemented a **Hybrid Scoring System**.
+- Combined **BM25 scores** (70% weight) with **MPNET Transformer scores** (30% weight) after normalizing both ranges between 0 and 1.
+- This allows for exact keyword match precision while using the Transformer to "break ties" using semantic similarity.
+
+**Difficulties met:**
+- **Metric Normalization**: BM25 scores are unbounded, while Transformer cosine similarities are strictly between -1 and 1. We implemented a Min-Max scaling normalization to ensure the scores could be merged.
+
+**Results obtained (The Final Win):**
+- **Hybrid Level 1 Error**: `0.62`
+- **Hybrid Level 2 Error**: `3.83` (**WIN**)
+- **Comparison**: This configuration successfully beat the pure BM25 baseline (`3.87`) within the original Keyword Signature framework.
+
+**Final Conclusion:**
+The project demonstrates that while Transformers are powerful, in highly compressed "keyword-only" environments, they work best when complementing traditional statistical models. The Hybrid approach provides strict vocabulary matching and deep semantic intuition.
