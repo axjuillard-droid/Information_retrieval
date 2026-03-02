@@ -1,0 +1,345 @@
+Natural Language Processing
+Christophe.rodrigues@devinci.fr
+Summary
+• Course Modalities
+• Definitions
+• Classic Libraries
+• Modern Libraries
+Course Modalities
+• 3 evaluations during this course:
+• Unsupervised project (40%)
+• Supervised project (40%)
+• Final Quiz (20%)
+Definition (according to wikipedia)
+Natural language processing (NLP) is the processing of natural 
+language information by a computer. NLP is a subfield of computer 
+science and is closely associated with artificial intelligence. NLP is 
+also related to information retrieval, knowledge representation, 
+computational linguistics, and linguistics more broadly.[1]
+Major processing tasks in an NLP system include: speech 
+recognition, text classification, natural language understanding, 
+and natural language generation. 
+Text in quantity
+• In 2025 :
+- 16 million texts are sent every minute
+- 156 million emails are sent
+- Of those emails, 103.5 million are spam
+- The Google search engine alone processes more than
+40,000 searches every second (3.5 billion searches per day).
+- Internet searches worldwide have reached 5 billion 
+searches a day. 
+Language in quality
+• To share information, to communicate with others
+• To learn
+• To store information
+Language shape the way we think
+Automatic Translation Example
+
+
+
+NLP Difficulty
+• Lot of problems in NLP remain difficult even today.
+• But one specificity of NLP is that lot of problems are not just
+difficult to find a solution but also to evaluate the solution.
+• For example : Finding a good summary to a given document is
+difficult, but evaluating the quality of summary is also difficult.
+• Because the process of realisation and evaluation are in reality 
+very similar.
+Symbolic versus Statistical history
+• From 1950 to 1990 : Symbolic approaches
+• From 1990 to Now : Statistical approaches
+• In 2010 first breakthrough with Neural Networks : Word2Vec
+• In 2017 second breakthrough with Transformers : BERT
+• In 2022 public release of ChatGPT
+Evolution of Transformer based models
+
+Some definitions
+• N-gram = subsenquence of n items
+• The items can be phonemes, syllables, letters, words
+• Corpus (plural corpora) = a computer-readable collection of text 
+or speech
+• Lemma = a set of lexical forms having the same stem, the same 
+major part-of-speech, and the same word sense
+• Types = number of distinct words in a corpus
+• Vocabulary = set of all distinct tokens of a corpus
+• Tokens = (not always) the words
+• Bag of words = set of words (without sequence order)
+• Lemmatization = reducing a word to the root
+Example : am, are and is have the shared lemma be
+Stemming = cutting suffixe of words
+Example :
+– ATIONAL → ATE (relational → relate)
+– ING → _ (doing → do)
+– SSES → SS (grasses → grass)
+Stemming and Lemmatization are useful to reduce vocabulary entropy
+Representing Text on a Computer
+• We need to represent characters in a binary world
+• One of the first attempt in 1960: ASCII (American Standard Code for 
+Information Interchange)
+• 128 codes on 7 bits
+• 95 printable characters (enough for english but not for others languages)
+!"#$%&'()*+,-./
+0123456789:;<=>?
+@ABCDEFGHIJKLMNO
+PQRSTUVWXYZ[\]^_
+`abcdefghijklmno
+pqrstuvwxyz{|}~
+
+Nowadays : UTF-8
+• UTF for Unicode Transformation format (1992)
+• Variable width character encoding, Between 1 and 4 octets
+→ 1,112,064 possible codes
+UTF-8 is the most used encoding standard on internet 
+In 2026, 99% of webpages are transmitted as UTF-8
+Character Distribution
+Unigrams
+French character
+frequency
+English character
+frequency
+
+Bigrams
+
+Trigrams
+
+Distribution of words : The Zipf’s Law
+• the frequency of any word is inversely
+proportional to its rank in the frequency table
+• In Ulysse from James Joyce :
+– the most frequent word occurs 8000 times
+– the tenth, 800 times
+– the hundredth, 80 times
+– the tousandth, 8 times.
+Distribution of words : The Zipf’s Law
+
+Tokenization
+Converting a
+ text into tokens
+Tokenization – How to split?
+
+Tokenization, the early stages
+• With Regular expressions
+[a-z] any letter between a and z
+[0-9] any number between 0 and 9
+| for alternatives
+relat(ional|e) covers relational and relate
+Useful also to find complex strings
+* : last character is repeated 0,1 or more times
+ex : ab* covers : ab, abb, abbb, abbbb…
+a(bc)* covers : a, abc, abcbc, abcbcbc...
+?: last character appeared 0 or 1 time.
+ex :plurals? Covers plural and plurals
+Regular Expressions are Deterministic Finite Automaton
+To test and develop regex :https://regex101.com/
+^\+?[0-9]{2}-?([0-9]{9}|[0-9]-[0-9]{2}-[0-9]{2}-[0-9]{2} -[0-9]{2})$
+Subword Tokenization : Byte-Pair Encoding
+• Byte-Pair Encoding(2016)
+• To define a vocabulary : learn how to split words according to a 
+corpus
+Byte-Pair Encoding(BPE)
+• reduces out-of-vocabulary issues,
+• balances vocabulary size and contextual expressiveness,
+• preserves frequent whole words while breaking rare words into 
+meaningful parts. Control the exact vocabulary size
+• BPE Tokenizer is used by Open AI in GPT, GPT-2, but also in several 
+other transformer based models like LlaMA, RoBERTa, BART, 
+DeBERTa…
+BPE Example
+• Add a end of word character ‘·’ 
+• Start with all tokenized words and their frequency:
+• Example corpus : «  low low low low low lowest lowest newer 
+newer newer newer newer newer wider wider wider new new »
+corpus representation:
+5x  l o w ·
+2x  l o w e s t ·
+6x  n e w e r ·
+3x  w i d e r ·
+2x  n e w ·
+Vocabulary :
+ ·,d,e,i,l,n,o,r,s,t,w
+BPE algorithm
+• 0) vocabulary is all possible characters {a,b,…}
+• Repeat :
+1) Find the most frequent adjacents tokens (Ex: ‘a’ , ‘n’)
+2) Concate and Add to the vocabulary (Ex: ‘an’)
+3) Replace occurrences of step 1) by concatenated one of step 2)
+• Until : #k merges made
+corpus:
+5x  l o w ·
+2x  l o w e s t ·
+6x  n e w e r ·
+3x  w i d e r ·
+2x  n e w ·
+Vocabulary :
+ ·,d,e,i,l,n,o,r,s,t,w
+Merge e r into er, and replace
+corpus:
+5x  l o w ·
+2x  l o w e s t ·
+6x  n e w er ·
+3x  w i d er ·
+2x  n e w ·
+Vocabulary :
+ ·,d,e,i,l,n,o,r,s,t,w,er
+corpus:
+5x  l o w ·
+2x  l o w e s t ·
+6x  n e w er ·
+3x  w i d er ·
+2x  n e w ·
+Vocabulary :
+ ·,d,e,i,l,n,o,r,s,t,w,er
+Merge er · into er·, and replace
+corpus:
+5x  l o w ·
+2x  l o w e s t ·
+6x  n e w er·
+3x  w i d er·
+2x  n e w ·
+Vocabulary :
+ ·,d,e,i,l,n,o,r,s,t,w,er,er·
+corpus:
+5x  l o w ·
+2x  l o w e s t ·
+6x  n e w er·
+3x  w i d er·
+2x  n e w ·
+Vocabulary :
+ ·,d,e,i,l,n,o,r,s,t,w,er,er·
+Merge n e into ne , and replace
+corpus:
+5x  l o w ·
+2x  l o w e s t ·
+6x  ne w er·
+3x  w i d er·
+2x  ne w ·
+Vocabulary :
+ ·,d,e,i,l,n,o,r,s,t,w,er,er·,ne
+Merges  Current Vocabulary
+(ne,w)  ·,d,e,i,l,n,o,r,s,t,w,er,er·,ne,new
+(l,o)   ·,d,e,i,l,n,o,r,s,t,w,er,er·,ne,new,lo
+(lo,w)   ·,d,e,i,l,n,o,r,s,t,w,er,er·,ne,new,lo,low
+(new,er·)  ·,d,e,i,l,n,o,r,s,t,w,er,er·,ne,new,lo,low,newer·
+(low, ·)  ·,d,e,i,l,n,o,r,s,t,w,er,er·,ne,new,lo,low,newer·,low·
+Once learned, vocabulary can tokenize the 
+corpus used for our application
+• On the test corpus, apply each merge greedily in the learned order 
+(no frequency involved)
+• V = ·,d,e,i,l,n,o,r,s,t,w,er,er·,ne,new,lo,low,newer·,low·
+• Test corpus : 
+• « n e w e r · » tokenized as « newer· »
+• « l o w e r · » tokenized as « low » and «er· » 
+(word lower doesn’t appear at learning time, it’s an out of vocabulary(oov))
+In conclusion we keep only frequent words and frequent subwords 
+as tokens
+WordPiece
+• Tokenizer used in BERT family models like DistilBERT, MobileBERT, 
+Funnel Transformers, MPNET... 
+• Similar to BPE tokenizer, but :
+• [UNK] for unknown tokens
+• ## prefixfor subwords that don’t start a word
+• Each merge of A and B tokens are scored :
+ Score(A, B) = (freq(AB) * len(vocab)) / (freq(A) * freq(B))
+ priority to the merged tokens where individual parts are less 
+frequent
+Example of my final project as student on 
+Master 2 on my NLP course
+Sentiment analysis project in 2008:
+• Encoding loading of text (converting to iso-8859-1) (C++)
+• Sentence Tokenization (Lisp)
+• Word Tokenization (Lisp)
+• SentiwordNet Dataset loading (Python)
+• Data preparation and Supervised Learning model (C/C++)
+With NLTK library (Python)
+NLTK for Natural Language Tool Kit
+Example code:
+from nltk.corpus import sentiwordnet as swn
+Sentence = ‘this is a sentence example’
+tokenSentence = nltk.word_tokenize(sentence)
+breakdown = swn.senti_synset('breakdown.n.01’)
+Print(breakdown)
+<breakdown.n.03: PosScore=0.0 NegScore=0.25>
+With Hugging Face
+from transformers import pipeline
+pipe = pipeline("text-classification")
+pipe("This restaurant is awesome")
+ [{'label': 'POSITIVE' , 'score': 0.9998743534088135}]
+(Transformers for all) 
+• The company was founded in 2016 by French entrepreneurs 
+Clément Delangue, Julien Chaumond, and Thomas Wolf
+• The main contribution is the transformers library
+• Hugging Face democratize and ease the utilization of transformers
+• its platform allows users to share machine learning models and 
+datasets and showcase their work.
+
+Hugging Face Pipeline Applications
+• audio-classification
+• automatic-speech-
+recognition
+• depth-estimation
+• document-question-
+answering
+• feature-extraction
+• fill-mask
+• image-classification
+• image-feature-extraction
+• image-segmentation
+• image-text-to-text
+• image-to-image
+• image-to-text
+• keypoint-matching
+• mask-generation
+• object-detection
+• question-answering
+• summarization
+• table-question-answering
+• text2text-generation
+• text-classification (alias 
+sentiment-analysis)
+• text-generation
+• text-to-audio (alias text-to-
+speech)
+• token-classification (alias 
+"ner")
+• translation
+• translation_xx_to_yy
+• video-classification
+• visual-question-answering
+• zero-shot-classification
+• zero-shot-image-
+classification
+• zero-shot-audio-
+classification
+• zero-shot-object-detection
+Representing Words as vectors
+● One-hot vectors
+
+Word vectors
+• Comparing two sentences can be resume to compute a scalar 
+product between two vectors.
+• In order to reduce vectors size :
+– keep only the n most frequent tokens
+– normalize the most frequents tokens according to zipf’s
+law.
+The rare linguistic hypothesis that drives 
+modern models
+"You shall know a word by the company it keeps" (Firth, 1957)
+Distributional Hypothesis : "Words that occur in the same contexts 
+tend to have similar meanings" (Harris, 1954)
+Classic vector representation (before 2013)
+Matrice de co-occurrences + SVD
+2014
+Word co-occurrence  matrix + Dimensional Reduction (SVD)
+
+2013
+Continous Bag of Words Models (CBOW) aka Word2Vec
+Goal : predict the probability of a word given context words.
+Example : "The cat jumped over the puddle. "
+for the center word "jumped" , the context is :
+{"The" , "cat" , ’over" , "the’ , "puddle"}
+2013
+King – Man + Queen = Woman
+Word2Vec model
+Word2Vec Online Visualization
+https://projector.tensorflow.org/
+

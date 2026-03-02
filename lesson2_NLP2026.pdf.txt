@@ -1,0 +1,64 @@
+Unsupervised Natural 
+Language Processing
+Christophe Rodrigues
+How to find clusters of documents?
+• Vectorization + "classical" clustering
+• TF-IDF
+• LSA
+• LDA
+Warning : Topic modeling is very sensitive to pretreatments!
+2D Visualization of high-dimensional words
+Word embedding
++
+UMAP
+Information Retrieval(IR)
+• IR is the process of retrieving the most suitable information as a 
+response to the query being made by the user.
+• Example:
+
+Information Retrieval(IR)
+Paper published in 98
+
+IR Evaluation
+• The accuracy of an information retrieval task is measured in terms 
+of precision and recall.
+• Suppose that a given IR system returns X documents when a 
+query is fired. But the actual or gold set of documents that needs 
+to be returned is Y .
+IR Evaluation
+• Recall may be defined as the fraction of gold documents that a 
+system finds. It may be defined as the ratio of true positives to the 
+combination of true positives and false negatives.
+• Precision may be defined as the fraction of documents that an IR 
+system detects and are correct.
+• F-Measure may be defined as the harmonic mean of precision and 
+recall.
+
+IR Evaluation
+
+TF-IDF
+• TF-IDF = term frequency–inverse document frequency
+• TF or term frequency : may be defined as the total number of 
+times a given token exists in a document divided by the total 
+number of tokens.
+
+TF-IDF
+• IDF or inverse document frequency : the specificity of a term 
+can be quantified as an inverse function of the number of 
+documents in which it occurs.
+
+TF-IDF
+Let’s see an example : https://en.wikipedia.org/wiki/Tf–idf
+• Link to the 2021 paper and 2024 paper
+• Link to the GitHub
+
+Some Limits of evaluation in NLP
+• NLP is difficult because it’s difficult to evaluate :
+“Beyond Accuracy: Behavioral Testing of NLP Models with 
+CheckList” Best paper at ACL 2020 
+• Data Contamination
+ “ Investigating Data Contamination in Modern Benchmarks for Large 
+Language Models” paper at ACL 2024
+Data Contamination
+
+

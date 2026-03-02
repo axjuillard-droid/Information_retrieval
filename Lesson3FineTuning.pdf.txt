@@ -1,0 +1,9 @@
+Fine-tuning models
+
+We keep the original weights frozen.
+We adapt them with a new set of weights
+And apply backpropagation only on the new set of 
+weights.
+
+
+

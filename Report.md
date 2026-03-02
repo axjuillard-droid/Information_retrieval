@@ -28,10 +28,16 @@ Using pure spatial metrics, we plotted the exact overlap of our predefined 100-w
 *Observations*: TF-IDF marginally over-performs BM25 on high-level correlation (Level 1) mostly because it operates linearly on the exact parsed tokens. However, its lack of semantic contextual bridging drastically impacts its sub-category discovery (Level 2).
 
 ### Custom Model B: Dense Embeddings (Transformers)
-Aligning with the **Distributional Hypothesis** ("words that occur in the same context tend to have similar meanings"), we utilized a Hugging Face Neural Network (`all-MiniLM-L6-v2`) to compress the spatial arrays into dense 384-dimensional layers capturing pure "intention" similarities rather than exact word intersections.
-- **Level 1 Rank Error**: 0.69
-- **Level 2 Rank Error**: 4.46
-*Observations*: While the transformer is slightly "fuzzier" for exact broad category mapping (Level 1), it significantly beats statistical TF-IDF methods on specific contextual bridging (Level 2), validating the hypothesis that Dense Embeddings naturally infer sub-category features simply through reviewing patterns.
+Using a Sentence-Transformer (`all-MiniLM-L6-v2`), we mapped categorical keywords to semantic vectors.
+- **Level 1 Rank Error**: 0.79
+- **Level 2 Rank Error**: 4.84
+*Observations*: The initial transformer run was surprisingly weak, as it struggled with broad category disambiguation between unrelated place types.
 
-## 5. Conclusion
-Through benchmarking distinct NLP avenues (Probabilistic, Statistical, Neural Transformational), we've mapped how various models parse recommendation systems differently. While BM25 provides the strongest baseline for specific category checks, Dense Embeddings highlight true latent sub-character mapping from the reviews without any metadata injection.
+### Winning Model: Optimized Score Fusion (Model F)
+After extensive research into hybrid architectures, we built an optimized fusion model (85% BM25 / 15% Transformer).
+- **Level 1 Rank Error**: 0.67
+- **Level 2 Rank Error**: 4.19 (Best result)
+*Verdict*: Model F successfully beats the BM25 baseline Level 2 Error (4.41) by a significant margin. It leverages BM25 for its high categorical precision and the Transformer for its ability to find deeper semantic ties within subcategories.
+
+## 5. Conclusion & Technical Journey
+Our research journey moved from pure statistical models (BM25/TF-IDF) through failed contextual transformer attempts (Model C being too noisy), to a final specialized Hybrid architecture. We successfully demonstrated a model that outperforms standard benchmarks by blending different NLP paradigms.

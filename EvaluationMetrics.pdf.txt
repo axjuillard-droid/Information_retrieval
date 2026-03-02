@@ -1,0 +1,57 @@
+
+Prompting
+• Prompting can be interpreted as a fine-tuning alternative (François 
+Chollet)
+• TELER, Taxonomy for prompting LLMs,  Source
+• Prompt ressources : Link
+
+Evaluation (the darkside of NLP)
+• Case study :
+Text Summarization
+Source
+
+Using human 
+annotators
+Annotator interface
+
+Kendall’s tau correlation coefficients of 
+expert annotations computed on a system-
+level along four quality dimensions with 
+automatic metrics using 11 reference 
+summaries per example. ˆ denotes 
+metrics which use the source document. 
+The five most-correlated metrics in each 
+column are bolded
+Human ratings of summaries along four 
+evaluation dimensions, averaged over 
+three expert annotators, broken down by 
+extractive and abstractive models. The 
+M* codes follow the notation described 
+in Section 3.2. The three highest-rated 
+models in each column are in bold.
+
+
+Rouge (2004), Source
+
+WordMover Distance (2015), Source
+
+BertScore (2020), Source
+
+Mauve (2021), Source
+
+Menli (2023), Source
+• " Hey LLM are you surprised?"
+TrustScore (2024), Source
+
+The Bitter Lesson from Rich Sutton, Source
+• What's the
+Difference
+in time
+Between
+static and
+Dynamic
+embeddings?
+
+
+Source
+

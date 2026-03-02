@@ -1,0 +1,73 @@
+Information Retrieval & NLP 
+TripAdvisor Recommendation System 
+First project 
+ 
+Goal : Based on one or a set of reviews of one place, the system must recommend the most 
+similar place. 
+Hypothesis : In this work we made the hypothesis that similar experiences (restaurant, hotel, 
+attraction) are expressed in a similar way. If this hypothesis is true, then we can recommend a 
+similar experience relying only on reviews. 
+Evaluation : Even if the system only relies on reviews, we need a way to evaluate our hypothesis. 
+For a given experience, if the system recommends a similar one then the query and retrieve 
+experience must share the same categories described on metadata. 
+_______________________________________________________________ 
+Data provided :  
+Reviews are in reviews83325.csv. Each line is a review. 
+Places information are in Tripadvisor.csv. Each line is a place with entire description. 
+Places and reviews can be joined by idplace (in reviews) and id (from places). 
+To simplify, you can use reviews that are only in English. You can filter with attribute “langue” . 
+ 
+Difficulties : the number of reviews by places is variable. Reducing the discrepancy size 
+between places can help. Different strategies are possible it can be by filtering reviews in order 
+to keep only a given number. It can be by selecting only the best sentences or best words fixing 
+also the size of the selection. For example, you can use Tf-idf to select the best 100 words that 
+describes a place… 
+Evaluation : 
+Level 1 evaluation :  the most simple level of evaluation is to check if the retrieved place is of the 
+same type of the query place by checking the attribute typeR and to make an average of the good 
+finding normalized by the number of recommendations. 
+For typeR attribute, only 4 possibles outcomes are possible: H,R,A and AP for respectively Hotel, 
+Restaurant, Attraction and Attraction Product. 
+ 
+Level 2 evaluation :  
+In order to have a more precise evaluation, other information is provided. 
+For attractions : In tripAdvisor table, activiteSubCategorie attribute is a list of ids where definition is on 
+table activiteSubCategorie. 
+activiteSubType attribute is even more precise where definition is on table activiteSubType. 
+ 
+For restaurants you can find the restaurantType and cuisine attributes. 
+For hotels, you can use the priceRange attribute. 
+Ranking Error metric :  
+In order to evaluate your models, you need to random split places between train and test. You 
+can keep 50% for train/queries and the other 50% for test. 
+Since some metadata are very precise, we cannot suppose the perfection of the model. In order 
+to have a more informative evaluation and not a binary one, we can return the position of the first 
+similar place according to the metadata. 
+Example :  
+If the query place is an attraction, that is an art museum. Our system will rank every test places. 
+If the first place retrieved is an art museum, the system has an error of 0 (it’s a perfect 
+recommendation). If it’s not the case and we need to go to position 7 to find an art museum, the 
+system have an error of 6 (n-1, because we start at zero). If it doesn’t exist on test set any place 
+with same metadata, then the query is not tested (error is undefined). 
+You can use a ranking error of level 1 or of level 2. For the level 2 since some attributes are a list 
+of several categories, we define as a positive match if at least one of the categories matches. 
+For example if the query place is an art museum and a garden, if a retrieved place is only a 
+garden, we consider that the recommendation matches the query. 
+ 
+Warning : you can do what you want but any of the information used for evaluation can’t be used 
+to design your system that only relies on reviews. The metadata used to evaluate the model 
+cannot be used in input of the model. 
+ 
+Deliverables :  
+1) In order to validate your pipeline, run the simple baseline bm25 on it : 
+https://pypi.org/project/rank-bm25/ 
+2) Design a model better than bm25 
+3) Evaluate bm25 and your model with Ranking Error Level 1 and Level 2 
+4) Describe your model in a small report. You need to explain the logic behind all your 
+choices. Describe also the different results 
+5) Deposit your code on DVO (it can be a jupyter notebook) 
+6) If you tested different models, describe and evaluate all you did. It shows your 
+dedication. 
+The project can be done by group of 2 students. The deadline is 2 mars 2026. 
+ 
+Good Luck! 
