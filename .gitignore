@@ -1,2 +1,15 @@
+# Generated artefacts — do not commit large data/model files
 *.csv
 *.txt
+*.pdf
+
+# Notebook-generated cache
+notebooks/prepared_reviews.csv
+notebooks/__pycache__/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Model caches
+.cache/
+sentence_transformers_cache/
