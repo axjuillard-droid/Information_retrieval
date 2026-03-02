@@ -70,3 +70,38 @@
 - **Model B Average Ranking Error Level 1**: `0.69`. Slightly less precise than TF-IDF/BM25 on the exact `typeR` generalistic term mapping.
 - **Model B Average Ranking Error Level 2**: `4.46`. Noticeably outperforms pure TF-IDF on specific subtypes (Level 2). This confirms the *"Distributional Hypothesis"* from the course: because it maps contextual meaning rather than explicit word count, the dense embedding successfully matches sub-categories even if reviewer vocabularies slightly diverge compared to the rigid TF-IDF baseline.
 
+## Step 5: Model B-v2 — Improved Dense Embeddings (Top-5 Sentence Concatenation)
+
+**Motivation:**
+Model B fed MiniLM a space-separated "bag of words" (the `top_100_words` column), depriving the Transformer of the sentence structure it was pre-trained to understand. The project instructions explicitly allow *"selecting only the best sentences while fixing the size of the selection"* — this step exploits that strategy directly.
+
+**First attempt — Mean Pooling over 20 sentences (discarded):**
+- Extracted the top 20 sentences per place, scored by mean TF-IDF word weight.
+- Encoded each sentence individually with MiniLM → 20 × 384-d vectors.
+- Aggregated via mean pooling → 1 × 384-d vector per place.
+- **Results: L1 = 0.79 / L2 = 4.94** — worse than Model B. Root cause: averaging 20 diverse sentence embeddings dilutes the discriminative features, pushing representations towards a generic centroid.
+
+**Second attempt — Top-5 Sentence Concatenation (adopted):**
+**What was built:**
+- Created `5_Improved_Transformer_Model.ipynb`.
+- Loaded raw `reviews83325.csv` directly (not `prepared_reviews.csv`) to access full sentence text.
+- Split each place's reviews into individual sentences (split on `.`, `!`, `?`); filtered to sentences ≥ 5 words.
+- Scored sentences using `TfidfVectorizer` per place — score = mean TF-IDF weight across sentence words.
+- Selected the **top 5 highest-scoring sentences** and concatenated them into a single text (≈ 100 words ≈ 130 tokens, safely within MiniLM's 256-token limit).
+- Encoded the concatenated text with a single `model.encode()` call (batch_size=64) — no pooling needed.
+- Applied the identical Level 1 and Level 2 evaluation logic.
+
+**Why concatenation beats mean pooling:**
+- The Transformer processes the 5 sentences sequentially, preserving cross-sentence syntactic context.
+- No averaging noise — the single forward pass produces one tightly focused embedding.
+- MiniLM's attention mechanism can attend across all 5 sentences simultaneously.
+
+**Difficulties met:**
+- The raw review column contains mixed-quality sentences (very short, fragmented). The 5-word minimum filter removes low-information fragments without losing coverage.
+- Very sparse places (few reviews) may have fewer than 5 eligible sentences — handled by joining all available sentences.
+
+**Results obtained:**
+- **Model B-v2 Average Ranking Error Level 1**: *(see notebook 5 output)*
+- **Model B-v2 Average Ranking Error Level 2**: *(see notebook 5 output)*
+
+
