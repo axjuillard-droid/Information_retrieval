@@ -156,10 +156,53 @@ Model F is our strongest model. While BM25 remains slightly more accurate for br
 
 ---
 
-## Conclusion
+## Step 10: Diagnosing Remaining Weaknesses
 
-Through this iterative research process, I have demonstrated that:
-1. **Statistical baselines like BM25 are hard to beat** in broad category retrieval using only review text.
-2. **Transformers require the right data representation.** Feeding them categorical keywords (Top 100 TF-IDF words) proved more effective than raw, noisy review text for this specific dataset.
-3. **Hybridization is the key to excellence.** By fusing BM25's precision with Transformer's semantic recall, we achieved a better overall recommendation system than the baseline provided by the professor.
+**Analysis of Model F's limitations:**
+Despite Model F's improvement on Level 2, the gains remain incremental. I identified three fundamental flaws in my previous approach:
+
+1. **Score fusion is mathematically fragile.** BM25 scores are unbounded (can be 0–300+), while cosine similarities are in [-1, 1]. Min-max normalizing per-query is unstable — one outlier document can compress the entire distribution. A single very high BM25 score makes all other scores appear equally "bad", even when they differ meaningfully.
+
+2. **MiniLM is an undersized model.** The `all-MiniLM-L6-v2` transformer has only 6 layers and 384 dimensions. It's designed for speed, not accuracy. The top-performing sentence transformer, `all-mpnet-base-v2`, uses 12 layers and 768 dimensions — significantly more expressive for capturing nuanced linguistic similarities.
+
+3. **We are wasting the TF-IDF signal.** Models A (TF-IDF) and BM25 each capture different aspects of similarity (geometric distance vs. probabilistic relevance). By only fusing BM25 + Transformer, we discard TF-IDF's orthogonal information.
+
+**Solution — Two innovations from the Information Retrieval literature:**
+
+### Reciprocal Rank Fusion (RRF)
+Instead of normalizing and summing scores (fragile), the RRF algorithm (Cormack et al., 2009) fuses *ranks* from multiple systems:
+
+$$RRF\_score(d) = \sum_{r \in rankers} \frac{1}{k + rank_r(d)}$$
+
+where $k = 60$ is a standard smoothing constant. This is **distribution-agnostic** — it doesn't matter if BM25 scores are in [0, 300] and cosine scores are in [0, 1]. Only the relative ordering matters. This is the fusion method used by Elasticsearch, Pinecone, and all major search platforms.
+
+### Cross-Encoder Re-ranking
+A bi-encoder (what we've been using) encodes query and document *independently*, then compares. A **cross-encoder** takes both texts as a *single input*, allowing full attention between every token of the query and every token of the document simultaneously. This produces dramatically more accurate relevance scores at the cost of speed (which is fine if we only re-rank ~50 candidates).
+
+---
+
+## Step 11: Model G — Triple-RRF Ensemble + Cross-Encoder Re-ranking
+
+**Architecture:**
+```
+Stage 1: Retrieval — Triple RRF
+    ├── BM25 (keywords)           → rank list
+    ├── TF-IDF + Cosine Sim       → rank list
+    └── all-mpnet-base-v2 (dense) → rank list
+    └── RRF combines ranks → Top 50 candidates
+
+Stage 2: Re-ranking — Cross-Encoder
+    └── cross-encoder/ms-marco-MiniLM-L-6-v2
+    └── Takes (query, candidate) pairs → relevance score
+    └── Final ranking based on cross-encoder scores
+```
+
+**What was built:**
+- Implemented `run_advanced_pipeline()` in `full.py`.
+- Used `all-mpnet-base-v2` as the dense retriever (upgrade from MiniLM).
+- Applied Reciprocal Rank Fusion across all three retrieval signals.
+- Used `cross-encoder/ms-marco-MiniLM-L-6-v2` to re-rank the top 50 RRF candidates.
+
+**Results obtained:**
+- [Pending Execution]
 

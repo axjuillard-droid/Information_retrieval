@@ -7,7 +7,7 @@ import warnings
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from rank_bm25 import BM25Okapi
-from sentence_transformers import SentenceTransformer
+from sentence_transformers import SentenceTransformer, CrossEncoder
 
 warnings.filterwarnings('ignore')
 
@@ -20,11 +20,16 @@ def run_data_preparation():
     print("STEP 1: DATA PREPARATION")
     print("="*50)
     
-    # Load Datasets
-    # Assuming the data folder is in the parent of where this script runs if it's in notebooks/
-    # But if it's in root, it's just 'data/'
-    df_reviews = pd.read_csv('../data/reviews83325.csv')
-    df_places = pd.read_csv('../data/Tripadvisor.csv')
+    # Use absolute paths relative to the script location
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(script_dir) # parent of notebooks/
+    
+    reviews_path = os.path.join(project_root, 'data', 'reviews83325.csv')
+    places_path = os.path.join(project_root, 'data', 'Tripadvisor.csv')
+    output_path = os.path.join(project_root, 'prepared_reviews.csv')
+
+    df_reviews = pd.read_csv(reviews_path)
+    df_places = pd.read_csv(places_path)
 
     print(f"Total reviews: {len(df_reviews)}")
     print(f"Total places: {len(df_places)}")
@@ -59,11 +64,9 @@ def run_data_preparation():
     df_grouped['top_100_words'] = df_grouped['review'].apply(extract_top_100_tfidf)
     print(f"Sample keywords for place 0: {df_grouped['top_100_words'].iloc[0][:80]}...")
 
-    # Save the prepared data
-    df_final = df_grouped[['idplace', 'top_100_words', 'review']]
-    df_final.to_csv('prepared_reviews.csv', index=False)
-    print("Cleaned reviews dataset saved as 'prepared_reviews.csv'")
-    return df_final
+    df_grouped.to_csv(output_path, index=False)
+    print(f"Cleaned reviews dataset saved as '{output_path}'")
+    return df_grouped
 
 def eval_level_1(query_typeR, sorted_test_typeR_list):
     """Level 1 error: rank of first match on typeR (H/R/A/AP). Error = rank index."""
@@ -117,14 +120,17 @@ def run_bm25_baseline():
     print("STEP 2: BM25 BASELINE EVALUATION")
     print("="*50)
     
+    # Standard path resolution
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(script_dir)
+    prepared_path = os.path.join(project_root, 'prepared_reviews.csv')
+    tripadvisor_path = os.path.join(project_root, 'data', 'Tripadvisor.csv')
+
     # Load prepared textual data
-    df_reviews = pd.read_csv('prepared_reviews.csv')
+    df_reviews = pd.read_csv(prepared_path)
     
     # Load metadata for evaluation
-    try:
-        df_places = pd.read_csv('data/Tripadvisor.csv', low_memory=False)
-    except FileNotFoundError:
-        df_places = pd.read_csv('../data/Tripadvisor.csv', low_memory=False)
+    df_places = pd.read_csv(tripadvisor_path, low_memory=False)
         
     eval_cols = ['id', 'typeR', 'activiteSubType', 'restaurantType', 'restaurantTypeCuisine', 'priceRange']
     df_places = df_places[eval_cols].copy()
@@ -487,6 +493,136 @@ def run_optimized_hybrid(train_df, test_df, test_subcats_list):
     print(f"Model F (Optimized Hybrid) Average Ranking Error Level 1: {np.mean(lvl1_errors):.2f}")
     print(f"Model F (Optimized Hybrid) Average Ranking Error Level 2: {np.mean(lvl2_errors):.2f}")
 
+# ==============================================================================
+# ADVANCED PIPELINE: Triple-RRF + Cross-Encoder Re-ranking (Model G)
+# ==============================================================================
+
+def reciprocal_rank_fusion(*rank_lists, k=60):
+    """
+    Reciprocal Rank Fusion (Cormack et al., 2009).
+    
+    Given N rank lists (each a list of document indices sorted by relevance),
+    compute for each document:
+        RRF_score(d) = sum_{r in rankers} 1 / (k + rank_r(d))
+    
+    k=60 is the standard smoothing constant from the original paper.
+    Returns indices sorted by descending RRF score.
+    """
+    rrf_scores = {}
+    for rank_list in rank_lists:
+        for rank, doc_idx in enumerate(rank_list):
+            if doc_idx not in rrf_scores:
+                rrf_scores[doc_idx] = 0.0
+            rrf_scores[doc_idx] += 1.0 / (k + rank)
+    
+    # Sort by RRF score descending
+    sorted_docs = sorted(rrf_scores.keys(), key=lambda d: rrf_scores[d], reverse=True)
+    return sorted_docs
+
+def run_advanced_pipeline(train_df, test_df, test_subcats_list):
+    print("\n" + "="*60)
+    print("STEP 11: MODEL G — TRIPLE-RRF + CROSS-ENCODER RE-RANKING")
+    print("="*60)
+    
+    # ====================================================================
+    # STAGE 1a: BM25 Retrieval (already proven: best for Level 1)
+    # ====================================================================
+    print("[Stage 1a] Building BM25 index...")
+    corpus_kw = test_df['top_100_words'].fillna('').astype(str).tolist()
+    tokenized_corpus = [doc.split(" ") for doc in corpus_kw]
+    bm25 = BM25Okapi(tokenized_corpus)
+    
+    # ====================================================================
+    # STAGE 1b: TF-IDF Cosine Similarity
+    # ====================================================================
+    print("[Stage 1b] Building TF-IDF vectors...")
+    tfidf_vectorizer = TfidfVectorizer()
+    train_kw = train_df['top_100_words'].fillna('').tolist()
+    test_kw  = test_df['top_100_words'].fillna('').tolist()
+    tfidf_train = tfidf_vectorizer.fit_transform(train_kw)
+    tfidf_test  = tfidf_vectorizer.transform(test_kw)
+    tfidf_sims  = cosine_similarity(tfidf_train, tfidf_test)
+    
+    # ====================================================================
+    # STAGE 1c: Dense Transformer (upgraded to all-mpnet-base-v2)
+    # ====================================================================
+    print("[Stage 1c] Encoding with all-mpnet-base-v2 (768-dim, 12 layers)...")
+    bi_encoder = SentenceTransformer('all-mpnet-base-v2')
+    train_vecs = bi_encoder.encode(train_kw, show_progress_bar=True, batch_size=64)
+    test_vecs  = bi_encoder.encode(test_kw, show_progress_bar=True, batch_size=64)
+    dense_sims = cosine_similarity(train_vecs, test_vecs)
+    
+    # ====================================================================
+    # STAGE 2: Cross-Encoder (for re-ranking top candidates)
+    # ====================================================================
+    print("[Stage 2] Loading Cross-Encoder (ms-marco-MiniLM-L-6-v2)...")
+    cross_encoder = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
+    
+    TOP_K = 50  # Number of RRF candidates to re-rank
+    
+    lvl1_errors = []
+    lvl2_errors = []
+    start_time = time.time()
+    n_queries = len(train_df)
+    print(f"Evaluating {n_queries} queries (RRF + Cross-Encoder re-rank top {TOP_K})...")
+    
+    for i in range(n_queries):
+        row = train_df.iloc[i]
+        query_text = str(row['top_100_words']).strip()
+        if not query_text or query_text == 'nan':
+            continue
+        
+        # --- Get rank lists from each retriever ---
+        # BM25 ranks
+        bm25_scores = bm25.get_scores(query_text.split(" "))
+        bm25_ranked = np.argsort(bm25_scores)[::-1].tolist()
+        
+        # TF-IDF ranks
+        tfidf_ranked = np.argsort(tfidf_sims[i])[::-1].tolist()
+        
+        # Dense (mpnet) ranks
+        dense_ranked = np.argsort(dense_sims[i])[::-1].tolist()
+        
+        # --- Reciprocal Rank Fusion ---
+        rrf_ranked = reciprocal_rank_fusion(bm25_ranked, tfidf_ranked, dense_ranked, k=60)
+        
+        # --- Cross-Encoder re-ranking of Top K ---
+        top_k_indices = rrf_ranked[:TOP_K]
+        
+        # Build (query, candidate) pairs for cross-encoder
+        pairs = [(query_text, test_kw[idx]) for idx in top_k_indices]
+        ce_scores = cross_encoder.predict(pairs, show_progress_bar=False)
+        
+        # Re-sort the top K by cross-encoder score
+        reranked_top = [top_k_indices[j] for j in np.argsort(ce_scores)[::-1]]
+        
+        # Append remaining docs (outside top K) in original RRF order
+        remaining = rrf_ranked[TOP_K:]
+        full_ranked = reranked_top + remaining
+        
+        # --- Evaluation ---
+        test_typeR_list = test_df['typeR'].values[full_ranked].tolist()
+        
+        err_1 = eval_level_1(row['typeR'], test_typeR_list)
+        if err_1 is not None:
+            lvl1_errors.append(err_1)
+        
+        query_subcats = extract_subcategories(row)
+        err_2 = eval_level_2(query_subcats, full_ranked, test_subcats_list)
+        if err_2 is not None:
+            lvl2_errors.append(err_2)
+        
+        # Progress indicator
+        if (i + 1) % 100 == 0:
+            print(f"  ... processed {i+1}/{n_queries} queries")
+
+    elapsed = time.time() - start_time
+    print(f"\nEvaluation done in {elapsed:.2f}s")
+    print("-" * 40)
+    print(f"Model G (Triple-RRF + Cross-Encoder) Average Ranking Error Level 1: {np.mean(lvl1_errors):.2f}")
+    print(f"Model G (Triple-RRF + Cross-Encoder) Average Ranking Error Level 2: {np.mean(lvl2_errors):.2f}")
+    print(f"  (Computed on {len(lvl1_errors)} L1 queries, {len(lvl2_errors)} L2 queries)")
+
 if __name__ == "__main__":
     # Run Step 1
     run_data_preparation()
@@ -511,3 +647,6 @@ if __name__ == "__main__":
 
     # Run Step 9 (Optimized Hybrid)
     run_optimized_hybrid(train_df, test_df, test_subcats_list)
+
+    # Run Step 11 (Advanced Pipeline: Triple-RRF + Cross-Encoder)
+    run_advanced_pipeline(train_df, test_df, test_subcats_list)
