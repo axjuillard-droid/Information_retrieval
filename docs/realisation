@@ -34,8 +34,11 @@
 - The TF-IDF preprocessing removed text for very sparse reviews, leading to instances with an empty string, which BM25 parsing had to handle safely.
 
 **Results obtained:**
-- **BM25 Average Ranking Error Level 1**: `0.61` (Computed on 917 valid test cases).
-- **BM25 Average Ranking Error Level 2**: `3.87` (Computed on 414 valid test cases).
+- **BM25 Average Ranking Error Level 1**: `0.64` (Computed on 917 valid test cases).
+- **BM25 Average Ranking Error Level 2**: `4.41` (Computed on 414 valid test cases).
+
+> [!NOTE]
+> *Refinement Note:* Earlier iterations yielded lower scores (L1 0.61 / L2 3.87) due to less strict evaluation logic. The current scores reflect a "Type-Aware" evaluation that ensures a Hotel query only matches a Hotel result, preventing spurious cross-category matches.
 
 ## Step 4: Custom Model Design
 
@@ -52,8 +55,8 @@
 - Making sure the Train/Test random seed matches identically with the Baseline split (fixed parameter `np.random.seed(42)` ensures deterministic validation).
 
 **Results obtained:**
-- **Model A Average Ranking Error Level 1**: `0.60`. Model A outperforms BM25 very marginally but is significantly faster to deploy across huge datasets utilizing Sklearn's fast array operations (computation took `0.25s` versus `13.0s`).
-- **Model A Average Ranking Error Level 2**: `4.78`. Although excellent for basic word checks, it noticeably drops in deeper semantic validation compared to BM25. TF-IDF relies on exact term overlap ("cheap hotel" vs "budget lodge" has no bridge), hence finding the specific subclass rank suffers.
+- **Model A Average Ranking Error Level 1**: `0.68`. Model A is significantly faster to deploy across huge datasets utilizing Sklearn's fast array operations (computation took `0.25s` versus `27.0s` for BM25).
+- **Model A Average Ranking Error Level 2**: `4.74`. Although good for basic term overlap, it drops in precision compared to the BM25 baseline ($4.41 \rightarrow 4.74$). TF-IDF relies on exact term overlap ("cheap hotel" vs "budget lodge" has no bridge), hence finding the specific subclass rank suffers.
 
 ### Model B: Dense Word/Sentence Embeddings (Transformers)
 **What was built:**
@@ -67,8 +70,8 @@
 - Extracting dense embeddings with a Transformer model takes significantly more computing power and time than purely statistical TF-IDF matrix generation. However, using the small 'MiniLM' model ensures it remains executable on localized CPU resources without timeouts.
 
 **Results obtained:**
-- **Model B Average Ranking Error Level 1**: `0.69`. Slightly less precise than TF-IDF/BM25 on the exact `typeR` generalistic term mapping.
-- **Model B Average Ranking Error Level 2**: `4.46`. Noticeably outperforms pure TF-IDF on specific subtypes (Level 2). This confirms the *"Distributional Hypothesis"* from the course: because it maps contextual meaning rather than explicit word count, the dense embedding successfully matches sub-categories even if reviewer vocabularies slightly diverge compared to the rigid TF-IDF baseline.
+- **Model B Average Ranking Error Level 1**: `0.79`. Performs less precisely than statistical models on broad category mapping.
+- **Model B Average Ranking Error Level 2**: `4.84`. Unexpectedly underperforms the baseline. Diagnosis indicates that feeding a Transformer "Keywords" instead of "Sentences" removes the semantic context necessary for the model to shine.
 
 ---
 
@@ -204,5 +207,19 @@ Stage 2: Re-ranking — Cross-Encoder
 - Used `cross-encoder/ms-marco-MiniLM-L-6-v2` to re-rank the top 50 RRF candidates.
 
 **Results obtained:**
-- [Pending Execution]
+- **Model G Average Ranking Error Level 1**: `0.71`.
+- **Model G Average Ranking Error Level 2**: `4.65`.
+
+**Analysis of Model G:**
+While this architecture is the most complex, it did not surpass the **Optimized Score Fusion (Model F)**. This is a classic "over-engineering" lesson: the RRF ensemble and Cross-Encoder re-ranker were designed to find needles in a haystack (long-form text), but here we are working with highly concentrated **TF-IDF keywords**. The keywords are already so discriminative that the added computational cost of a Cross-Encoder actually introduces "hallucinated" semantic similarities that pull the model away from the exact category markers (Level 1).
+
+### Final Recommendation Summary
+
+| Model | L1 Error | L2 Error | Status |
+| :--- | :--- | :--- | :--- |
+| **BM25 Baseline** | **0.64** | 4.41 | Strong baseline for category matching. |
+| **Model F (Optimized Hybrid)** | 0.67 | **4.19** | **Winner.** Achieved best Level 2 error by blending statistical and neural signals. |
+| **Model G (Advanced Pipeline)** | 0.71 | 4.65 | Sub-optimal for keyword-based retrieval. |
+
+**Final Conclusion:** For a recommendations system limited to keyword signatures, a **Weighted Score Fusion** (85% BM25 / 15% Transformer) provides the best results, effectively lowering specific subtype errors while maintaining high category precision.
 
